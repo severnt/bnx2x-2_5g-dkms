@@ -32,7 +32,7 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.712.30-0"
+#define DRV_MODULE_VERSION      "99.1.712.30-0"
 #define DRV_MODULE_RELDATE      "2014/02/10"
 #define BNX2X_BC_VER            0x040200
 
@@ -42,7 +42,7 @@
 
 #include "bnx2x_hsi.h"
 
-#include "../cnic_if.h"
+#include "cnic_if.h"
 
 #define BNX2X_MIN_MSIX_VEC_CNT(bp)		((bp)->min_msix_vec_cnt)
 
@@ -1592,6 +1592,7 @@ struct bnx2x {
 	uint			num_ethernet_queues;
 	uint			num_cnic_queues;
 	int			disable_tpa;
+	int			disable_sfp_tx_fault_detection;
 
 	u32			rx_mode;
 #define BNX2X_RX_MODE_NONE		0
