@@ -1592,6 +1592,7 @@ struct bnx2x {
 	uint			num_ethernet_queues;
 	uint			num_cnic_queues;
 	int			disable_tpa;
+	int			disable_sfp_tx_fault_detection;
 
 	u32			rx_mode;
 #define BNX2X_RX_MODE_NONE		0
