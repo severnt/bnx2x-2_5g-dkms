@@ -6,6 +6,10 @@ https://raw.githubusercontent.com/JAMESMTL/snippets/master/bnx2x/patches/bnx2x_w
 
 **Not tested with any other kernels**
 
+## Other versions
+
+Please see https://github.com/severnt/bnx2x-2_5g-dkms/branches for branches for other kernel versions.
+
 ## Additional Changes
 Added a module option that can be set to disable SFP TX fault detection:
 
