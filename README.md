@@ -23,7 +23,7 @@ This driver doesn't seem to change too often. Instead of grabbing the full sourc
 sudo apt-get update
 sudo apt-get install dkms
 cd /usr/src
-sudo git clone https://github.com/severnt/bnx2x-2_5g-dkms.git bnx2x-99.1.712.30-0
+sudo git clone -b debian10-4.19 https://github.com/severnt/bnx2x-2_5g-dkms.git bnx2x-99.1.712.30-0
 sudo dkms add bnx2x/99.1.712.30-0
 sudo dkms install bnx2x/99.1.712.30-0 -k $(uname -r)
 ```
