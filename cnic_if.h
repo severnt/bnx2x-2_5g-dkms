@@ -13,7 +13,7 @@
 #ifndef CNIC_IF_H
 #define CNIC_IF_H
 
-#include "bnx2x_mfw_req.h"
+#include "bnx2x/bnx2x_mfw_req.h"
 
 #define CNIC_MODULE_VERSION	"2.5.22"
 #define CNIC_MODULE_RELDATE	"July 20, 2015"

@@ -151,7 +151,6 @@ typedef int (*read_sfp_module_eeprom_func_p)(struct bnx2x_phy *phy,
 
 #define SFP_EEPROM_CON_TYPE_ADDR		0x2
 	#define SFP_EEPROM_CON_TYPE_VAL_UNKNOWN	0x0
-	#define SFP_EEPROM_CON_TYPE_VAL_SC	0x1
 	#define SFP_EEPROM_CON_TYPE_VAL_LC	0x7
 	#define SFP_EEPROM_CON_TYPE_VAL_COPPER	0x21
 	#define SFP_EEPROM_CON_TYPE_VAL_RJ45	0x22
@@ -4211,16 +4210,6 @@ static void bnx2x_warpcore_set_sgmii_speed(struct bnx2x_phy *phy,
 					 0x1000);
 		DP(NETIF_MSG_LINK, "set SGMII AUTONEG\n");
 	} else {
-		/* Note that 2.5G works only when used with 1G advertisment */
-		if (fiber_mode && (phy->req_line_speed == SPEED_2500) &&
-			(phy->speed_cap_mask &
-			 (PORT_HW_CFG_SPEED_CAPABILITY_D0_1G |
-			  PORT_HW_CFG_SPEED_CAPABILITY_D0_2_5G))) {
-			bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
-				MDIO_WC_REG_SERDESDIGITAL_MISC1,
-					0x6010);
-		}
-
 		bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
 				MDIO_WC_REG_COMBO_IEEE0_MIICTRL, &val16);
 		val16 &= 0xcebf;
@@ -4231,7 +4220,6 @@ static void bnx2x_warpcore_set_sgmii_speed(struct bnx2x_phy *phy,
 			val16 |= 0x2000;
 			break;
 		case SPEED_1000:
-		case SPEED_2500:
 			val16 |= 0x0040;
 			break;
 		default:
@@ -6190,7 +6178,8 @@ static int bnx2x_format_ver(u32 num, u8 *str, u16 *len)
 		return -EINVAL;
 	}
 
-	ret = scnprintf(str, *len, "%hx.%hx", num >> 16, num);
+	ret = scnprintf(str, *len, "%x.%x", (num >> 16) & 0xFFFF,
+			num & 0xFFFF);
 	*len -= ret;
 	return 0;
 }
@@ -6205,7 +6194,8 @@ static int bnx2x_3_seq_format_ver(u32 num, u8 *str, u16 *len)
 		return -EINVAL;
 	}
 
-	ret = scnprintf(str, *len, "%hhx.%hhx.%hhx", num >> 16, num >> 8, num);
+	ret = scnprintf(str, *len, "%x.%x.%x", (num >> 16) & 0xFF,
+			(num >> 8) & 0xFF, num & 0xFF);
 	*len -= ret;
 	return 0;
 }
@@ -8184,7 +8174,6 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 		break;
 	}
 	case SFP_EEPROM_CON_TYPE_VAL_UNKNOWN:
-	case SFP_EEPROM_CON_TYPE_VAL_SC:
 	case SFP_EEPROM_CON_TYPE_VAL_LC:
 	case SFP_EEPROM_CON_TYPE_VAL_RJ45:
 		check_limiting_mode = 1;
@@ -8195,8 +8184,7 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 		    (val[SFP_EEPROM_1G_COMP_CODE_ADDR] != 0)) {
 			DP(NETIF_MSG_LINK, "1G SFP module detected\n");
 			phy->media_type = ETH_PHY_SFP_1G_FIBER;
-			if ((phy->req_line_speed != SPEED_1000) &&
-				(phy->req_line_speed != SPEED_2500)) {
+			if (phy->req_line_speed != SPEED_1000) {
 				u8 gport = params->port;
 				phy->req_line_speed = SPEED_1000;
 				if (!CHIP_IS_E1x(bp)) {
@@ -8356,7 +8344,7 @@ static int bnx2x_wait_for_sfp_module_initialized(struct bnx2x_phy *phy,
 	 * some phys type ( e.g. JDSU )
 	 */
 
-	for (timeout = 0; timeout < 1800; timeout++) {
+	for (timeout = 0; timeout < 60; timeout++) {
 		if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT)
 			rc = bnx2x_warpcore_read_sfp_module_eeprom(
 				phy, params, I2C_DEV_ADDR_A0, 1, 1, &val,
@@ -9250,7 +9238,6 @@ static void bnx2x_8727_config_speed(struct bnx2x_phy *phy,
 	u16 tmp1, val;
 	/* Set option 1G speed */
 	if ((phy->req_line_speed == SPEED_1000) ||
-		(phy->req_line_speed == SPEED_2500) ||
 	    (phy->media_type == ETH_PHY_SFP_1G_FIBER)) {
 		DP(NETIF_MSG_LINK, "Setting 1G force\n");
 		bnx2x_cl45_write(bp, phy,
@@ -9260,22 +9247,6 @@ static void bnx2x_8727_config_speed(struct bnx2x_phy *phy,
 		bnx2x_cl45_read(bp, phy,
 				MDIO_PMA_DEVAD, MDIO_PMA_REG_10G_CTRL2, &tmp1);
 		DP(NETIF_MSG_LINK, "1.7 = 0x%x\n", tmp1);
-		if ((phy->req_line_speed == SPEED_2500) &&
-			(phy->speed_cap_mask &
-			(PORT_HW_CFG_SPEED_CAPABILITY_D0_1G |
-			 PORT_HW_CFG_SPEED_CAPABILITY_D0_2_5G))) {
-			bnx2x_cl45_read_and_write(bp, phy,
-					MDIO_AN_DEVAD,
-					MDIO_AN_REG_8727_MISC_CTRL2,
-					~(1<<5));
-			bnx2x_cl45_write(bp, phy,
-					MDIO_AN_DEVAD,
-					MDIO_AN_REG_8727_MISC_CTRL1, 0x0010);
-		} else {
-			bnx2x_cl45_write(bp, phy,
-					MDIO_AN_DEVAD,
-					MDIO_AN_REG_8727_MISC_CTRL1, 0x001C);
-		}
 		/* Power down the XAUI until link is up in case of dual-media
 		 * and 1G
 		 */
@@ -9297,7 +9268,7 @@ static void bnx2x_8727_config_speed(struct bnx2x_phy *phy,
 
 		DP(NETIF_MSG_LINK, "Setting 1G clause37\n");
 		bnx2x_cl45_write(bp, phy,
-				 MDIO_AN_DEVAD, MDIO_AN_REG_8727_MISC_CTRL2, 0);
+				 MDIO_AN_DEVAD, MDIO_AN_REG_8727_MISC_CTRL, 0);
 		bnx2x_cl45_write(bp, phy,
 				 MDIO_AN_DEVAD, MDIO_AN_REG_CL37_AN, 0x1300);
 	} else {
@@ -9305,11 +9276,8 @@ static void bnx2x_8727_config_speed(struct bnx2x_phy *phy,
 		 * registers although it is default
 		 */
 		bnx2x_cl45_write(bp, phy,
-				 MDIO_AN_DEVAD, MDIO_AN_REG_8727_MISC_CTRL2,
+				 MDIO_AN_DEVAD, MDIO_AN_REG_8727_MISC_CTRL,
 				 0x0020);
-		bnx2x_cl45_write(bp, phy,
-				 MDIO_AN_DEVAD, MDIO_AN_REG_8727_MISC_CTRL1,
-				 0x001C);
 		bnx2x_cl45_write(bp, phy,
 				 MDIO_AN_DEVAD, MDIO_AN_REG_CL37_AN, 0x0100);
 		bnx2x_cl45_write(bp, phy,
@@ -9599,11 +9567,6 @@ static u8 bnx2x_8727_read_status(struct bnx2x_phy *phy,
 		vars->line_speed = SPEED_10000;
 		DP(NETIF_MSG_LINK, "port %x: External link up in 10G\n",
 			   params->port);
-	} else if ((link_status & (1<<1)) && (!(link_status & (1<<14)))) {
-		link_up = 1;
-		vars->line_speed = SPEED_2500;
-		DP(NETIF_MSG_LINK, "port %x: External link up in 2.5G\n",
-			   params->port);
 	} else if ((link_status & (1<<0)) && (!(link_status & (1<<13)))) {
 		link_up = 1;
 		vars->line_speed = SPEED_1000;
@@ -9635,8 +9598,7 @@ static u8 bnx2x_8727_read_status(struct bnx2x_phy *phy,
 	}
 
 	if ((DUAL_MEDIA(params)) &&
-	    ((phy->req_line_speed == SPEED_1000) ||
-	     (phy->req_line_speed == SPEED_2500))) {
+	    (phy->req_line_speed == SPEED_1000)) {
 		bnx2x_cl45_read(bp, phy,
 				MDIO_PMA_DEVAD,
 				MDIO_PMA_REG_8727_PCS_GP, &val1);
@@ -11760,7 +11722,6 @@ static const struct bnx2x_phy phy_warpcore = {
 			   SUPPORTED_100baseT_Full |
 			   SUPPORTED_1000baseT_Full |
 			   SUPPORTED_1000baseKX_Full |
-			   SUPPORTED_2500baseX_Full |
 			   SUPPORTED_10000baseT_Full |
 			   SUPPORTED_10000baseKR_Full |
 			   SUPPORTED_20000baseKR2_Full |
@@ -11947,7 +11908,6 @@ static const struct bnx2x_phy phy_8727 = {
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
 	.supported	= (SUPPORTED_10000baseT_Full |
-			   SUPPORTED_2500baseX_Full |
 			   SUPPORTED_1000baseT_Full |
 			   SUPPORTED_FIBRE |
 			   SUPPORTED_Pause |
@@ -12295,7 +12255,6 @@ static int bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
 			break;
 		case PORT_HW_CFG_NET_SERDES_IF_SFI:
 			phy->supported &= (SUPPORTED_1000baseT_Full |
-					   SUPPORTED_2500baseX_Full |
 					   SUPPORTED_10000baseT_Full |
 					   SUPPORTED_FIBRE |
 					   SUPPORTED_Pause |
@@ -13885,7 +13844,7 @@ static void bnx2x_check_kr2_wa(struct link_params *params,
 
 	/* Once KR2 was disabled, wait 5 seconds before checking KR2 recovery
 	 * Since some switches tend to reinit the AN process and clear the
-	 * the advertised BP/NP after ~2 seconds causing the KR2 to be disabled
+	 * advertised BP/NP after ~2 seconds causing the KR2 to be disabled
 	 * and recovered many times
 	 */
 	if (vars->check_kr2_recovery_cnt > 0) {
@@ -13980,8 +13939,7 @@ void bnx2x_period_func(struct link_params *params, struct link_vars *vars)
 		    & PORT_HW_CFG_NET_SERDES_IF_MASK) ==
 		    PORT_HW_CFG_NET_SERDES_IF_SFI) {
 			if (bnx2x_is_sfp_module_plugged(phy, params)) {
-				if(!bp->disable_sfp_tx_fault_detection)
-					bnx2x_sfp_tx_fault_detection(phy, params, vars);
+				bnx2x_sfp_tx_fault_detection(phy, params, vars);
 			} else if (vars->link_status &
 				LINK_STATUS_SFP_TX_FAULT) {
 				/* Clean trail, interrupt corrects the leds */
