@@ -48,7 +48,7 @@
 
 #include "bnx2x_hsi.h"
 
-#include "../cnic_if.h"
+#include "cnic_if.h"
 
 #define BNX2X_MIN_MSIX_VEC_CNT(bp)		((bp)->min_msix_vec_cnt)
 
